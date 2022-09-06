@@ -14,6 +14,9 @@ jobs:
     - id: checkout-repo
       name: Checkout repository
       uses: actions/checkout@v3
+      with:
+        # Get complete history so we can see the log
+        fetch-depth: 0
     - id: setup-python
       name: Set up Python
       uses: actions/setup-python@v3
@@ -26,16 +29,26 @@ jobs:
       run: |
         # Install dependencies (globally on the GitHub Actions runner)
         python -m pip install --upgrade pip
-        python -m pip install flake8 pytest
+        python -m pip install flake8 pep8-naming flake8-docstrings pytest
         flake8 --version
         pytest -V
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - id: show-git-log
+      name: Show git commit log
+      shell: bash
+      continue-on-error: true
+      run: |
+        # Show git commit log
+        git log --name-status
     - id: check-design
       name: Check for design document
       shell: bash
+      continue-on-error: true
       run: |
         # Check for design document
-        [ -f "DESIGN.md" ] && echo "Design file is present." || exit 1
+        [ -f "DESIGN.md" ] && [ -s "DESIGN.md" ] \
+        && echo "Design file is present." \
+        || exit 1
     - id: compile
       name: Compile all files
       shell: bash
@@ -69,28 +82,28 @@ jobs:
       shell: bash
       run: |
         # Check PEP-8 naming
-        python -m pip install pep8-naming
         flake8 . --extend-ignore=D,E,W --show-source --count --max-complexity=10 --max-line-length=79
     - id: lint-docstrings
-      name: Check that docstrings follow conventions
+      name: Check for PEP-257 docstring conventions
       continue-on-error: true
       shell: bash
       run: |
         # Check docstrings
-        python -m pip install flake8-docstrings
-        flake8 . --extend-ignore=N,E,W --show-source --count --max-complexity=10 --max-line-length=79
+        flake8 . --ignore=D212 --extend-ignore=N,E,W --show-source --count --max-complexity=10 --max-line-length=79
     - id: summary-report
       name: Summary of checks
       shell: bash
       run: |
         # Summary of checks
         echo "REPORT CARD:"
-        echo "${{ steps.test.outcome }} -> Unit tests"
-        echo "${{ steps.lint-code.outcome }} -> Python code lint"
-        echo "${{ steps.lint-pep-8.outcome }} -> PEP-8 naming convention"
-        echo "${{ steps.lint-docstrings.outcome }} -> Format for docstrings"
+        echo "${{ steps.check-design.outcome }} -> Design document present"
+        echo "${{ steps.test.outcome }} -> Unit tests in pytest working"
+        echo "${{ steps.lint-code.outcome }} -> Python code formatted well"
+        echo "${{ steps.lint-pep-8.outcome }} -> PEP-8 naming conventions followed"
+        echo "${{ steps.lint-docstrings.outcome }} -> PEP-257 docstring conventions followed"
         #
         if [[ true \
+            && ${{ steps.check-design.outcome }} == "success" \
             && ${{ steps.test.outcome }} == "success" \
             && ${{ steps.lint-code.outcome }} == "success" \
             && ${{ steps.lint-pep-8.outcome }} == "success" \
