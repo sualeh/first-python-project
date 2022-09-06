@@ -49,6 +49,13 @@ jobs:
       run: |
         # Run tests
         pytest
+    - id: run
+      name: Run all Python code
+      shell: bash
+      continue-on-error: true
+      run: |
+        # Run all code to see output
+        for f in *.py; do python "$f"; done
     - id: lint-code
       name: Lint Python code
       continue-on-error: true
